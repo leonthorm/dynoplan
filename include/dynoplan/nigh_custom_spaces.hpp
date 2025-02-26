@@ -31,19 +31,6 @@ using __Space =
     nigh::CartesianSpace<nigh::ScaledSpace<nigh::L2Space<double, 2>>,
                          nigh::ScaledSpace<nigh::SO2Space<double>>>;
 
-using Space3 = nigh::CartesianSpace< // for polulu = unicycle3d
-    nigh::L2Space<double, 3>,
-    nigh::ScaledSpace<nigh::SO2Space<double>, std::ratio<1, 2>>>;
-
-using __Space3 =
-    nigh::CartesianSpace<nigh::ScaledSpace<nigh::L2Space<double, 3>>,
-                         nigh::ScaledSpace<nigh::SO2Space<double>>>;
-
-using __SpaceWithCost3 = // for polulu = unicycle3d
-    nigh::CartesianSpace<nigh::ScaledSpace<nigh::L2Space<double, 3>>,
-                         nigh::ScaledSpace<nigh::SO2Space<double>>,
-                         nigh::ScaledSpace<nigh::L2Space<double, 1>>>;
-
 using __SpaceWithCost =
     nigh::CartesianSpace<nigh::ScaledSpace<nigh::L2Space<double, 2>>,
                          nigh::ScaledSpace<nigh::SO2Space<double>>,
@@ -83,18 +70,6 @@ using SpaceIntegrator2_3d = nigh::CartesianSpace<
 using __SpaceIntegrator2_3d =
     nigh::CartesianSpace<nigh::ScaledSpace<nigh::L2Space<double, 3>>,
                          nigh::ScaledSpace<nigh::L2Space<double, 3>>>;
-// x y z vx vy vz fa
-using SpaceIntegrator2_3d_res = nigh::CartesianSpace<
-    nigh::L2Space<double, 3>,
-    nigh::ScaledSpace<nigh::L2Space<double, 3>, std::ratio<1, 4>>,
-    nigh::ScaledSpace<nigh::L2Space<double, 1>,
-                      std::ratio<1, 2>>>; // std::ratio<1,
-                                          // 4>
-
-using __SpaceIntegrator2_3d_res =
-    nigh::CartesianSpace<nigh::ScaledSpace<nigh::L2Space<double, 3>>,
-                         nigh::ScaledSpace<nigh::L2Space<double, 3>>,
-                         nigh::ScaledSpace<nigh::L2Space<double, 1>>>;
 
 // x y theta  vx  vw
 using SpaceQuad2d = nigh::CartesianSpace<
@@ -425,7 +400,7 @@ ompl::NearestNeighbors<_T> *nigh_factory2(
   auto &w = robot->distance_weights;
   // CSTR_V(w);
 
-  if (startsWith(name, "unicycle1") && name != "unicycle1_3d") {
+  if (startsWith(name, "unicycle1")) {
 
     if (cost_scale < 0) {
       auto data_to_key = [robot, fun](_T const &m) {
@@ -453,34 +428,6 @@ ompl::NearestNeighbors<_T> *nigh_factory2(
       __SpaceWithCost space(double(w(0)), double(w(1)), cost_scale);
 
       out = new NearestNeighborsNigh<_T, __SpaceWithCost>(space, data_to_key);
-    }
-
-  } else if (startsWith(name, "unicycle1_3d")) {
-
-    if (cost_scale < 0) {
-      auto data_to_key = [robot, fun](_T const &m) {
-        Eigen::Vector4d __x = fun(m);
-        return std::tuple(Eigen::Vector3d(__x.head(3)), __x(3));
-      };
-
-      DYNO_CHECK_EQ(w.size(), 2, AT);
-      __Space3 space(double(w(0)), double(w(1)));
-
-      out = new NearestNeighborsNigh<_T, __Space3>(space, data_to_key);
-    } else {
-
-      std::cout << "Warning: State space with cost!" << std::endl;
-      auto data_to_key = [robot, fun](_T const &m) {
-        Eigen::Vector4d __x = fun(m);
-        double c = m->get_cost();
-        using Vector1d = Eigen::Matrix<double, 1, 1>;
-        return std::tuple(Eigen::Vector3d(__x.head(3)), __x(3), Vector1d(c));
-      };
-
-      DYNO_CHECK_EQ(w.size(), 2, AT);
-      __SpaceWithCost3 space(double(w(0)), double(w(1)), cost_scale);
-
-      out = new NearestNeighborsNigh<_T, __SpaceWithCost3>(space, data_to_key);
     }
 
   } else if (startsWith(name, "unicycle2")) {
@@ -526,21 +473,6 @@ ompl::NearestNeighbors<_T> *nigh_factory2(
     DYNO_CHECK_EQ(w.size(), 2, AT);
     __SpaceIntegrator2 space(w(0), w(1));
     out = new NearestNeighborsNigh<_T, __SpaceIntegrator2>(space, data_to_key);
-
-  } else if (startsWith(name, "integrator2_3d_res")) {
-    auto data_to_key = [robot, fun](_T const &m) {
-      using Vector7d = Eigen::Matrix<double, 7, 1>;
-      using Vector1d = Eigen::Matrix<double, 1, 1>;
-      Vector7d __x = fun(m);
-      return std::tuple(Eigen::Vector3d(__x(0), __x(1), __x(2)),
-                        Eigen::Vector3d(__x(3), __x(4), __x(5)),
-                        Vector1d(__x(6)));
-    };
-
-    DYNO_CHECK_EQ(w.size(), 3, AT);
-    __SpaceIntegrator2_3d_res space(w(0), w(1), w(2));
-    out = new NearestNeighborsNigh<_T, __SpaceIntegrator2_3d_res>(space,
-                                                                  data_to_key);
 
   } else if (startsWith(name, "integrator2_3d")) {
     auto data_to_key = [robot, fun](_T const &m) {
@@ -634,6 +566,38 @@ ompl::NearestNeighbors<_T> *nigh_factory2(
     __SpaceCar1 space(w(0), w(1), w(2));
     // out = new NearestNeighborsNigh<_T, SpaceQuad3d>(data_to_key);
     out = new NearestNeighborsNigh<_T, __SpaceCar1>(space, data_to_key);
+
+    //TODO: check if correct
+  } else if (startsWith(name, "differential_drive")) {
+
+    if (cost_scale < 0) {
+      auto data_to_key = [robot, fun](_T const &m) {
+        // DYNO_CHECK_EQ(fun(m).size(), 3, ""); //
+        // assert(fun(m).size() == 3);
+        Eigen::Vector3d __x = fun(m);
+        return std::tuple(Eigen::Vector2d(__x.head(2)), __x(2));
+      };
+
+      DYNO_CHECK_EQ(w.size(), 2, AT);
+      __Space space(double(w(0)), double(w(1)));
+
+      out = new NearestNeighborsNigh<_T, __Space>(space, data_to_key);
+    } else {
+
+      std::cout << "Warning: State space with cost!" << std::endl;
+      auto data_to_key = [robot, fun](_T const &m) {
+        Eigen::Vector3d __x = fun(m);
+        double c = m->get_cost();
+        using Vector1d = Eigen::Matrix<double, 1, 1>;
+        return std::tuple(Eigen::Vector2d(__x.head(2)), __x(2), Vector1d(c));
+      };
+
+      DYNO_CHECK_EQ(w.size(), 2, AT);
+      __SpaceWithCost space(double(w(0)), double(w(1)), cost_scale);
+
+      out = new NearestNeighborsNigh<_T, __SpaceWithCost>(space, data_to_key);
+    }
+
   }
 
   CHECK(out, AT);
@@ -658,7 +622,7 @@ ompl::NearestNeighbors<_T> *nigh_factory_t(
   auto &w = robot->distance_weights;
   // CSTR_V(w);
 
-  if (startsWith(name, "unicycle1") && name != "unicycle1_3d") {
+  if (startsWith(name, "unicycle1")) {
 
     if (cost_scale < 0) {
       auto data_to_key = [robot, fun, reverse_search](_T const &m) {
@@ -685,35 +649,6 @@ ompl::NearestNeighbors<_T> *nigh_factory_t(
       __SpaceWithCost space(double(w(0)), double(w(1)), cost_scale);
 
       out = new NearestNeighborsNigh<_T, __SpaceWithCost>(space, data_to_key);
-    }
-
-  } else if (startsWith(name, "unicycle1_3d")) {
-
-    if (cost_scale < 0) {
-      auto data_to_key = [robot, fun, reverse_search](_T const &m) {
-        Eigen::Vector4d __x =
-            fun(m, reverse_search, robot->translation_invariance);
-        return std::tuple(Eigen::Vector3d(__x.head(3)), __x(3));
-      };
-
-      DYNO_CHECK_EQ(w.size(), 2, AT);
-      __Space3 space(double(w(0)), double(w(1)));
-
-      out = new NearestNeighborsNigh<_T, __Space3>(space, data_to_key);
-    } else {
-      std::cout << "Warning: State space with cost!" << std::endl;
-      auto data_to_key = [robot, fun, reverse_search](_T const &m) {
-        Eigen::Vector4d __x =
-            fun(m, reverse_search, robot->translation_invariance);
-        double c = m->get_cost();
-        using Vector1d = Eigen::Matrix<double, 1, 1>;
-        return std::tuple(Eigen::Vector3d(__x.head(3)), __x(3), Vector1d(c));
-      };
-
-      DYNO_CHECK_EQ(w.size(), 2, AT);
-      __SpaceWithCost3 space(double(w(0)), double(w(1)), cost_scale);
-
-      out = new NearestNeighborsNigh<_T, __SpaceWithCost3>(space, data_to_key);
     }
 
   } else if (startsWith(name, "unicycle2")) {
@@ -759,21 +694,6 @@ ompl::NearestNeighbors<_T> *nigh_factory_t(
     __SpaceIntegrator2 space(w(0), w(1));
     out = new NearestNeighborsNigh<_T, __SpaceIntegrator2>(space, data_to_key);
 
-  } else if (startsWith(name, "integrator2_3d_res")) {
-    auto data_to_key = [robot, fun, reverse_search](_T const &m) {
-      using Vector7d = Eigen::Matrix<double, 7, 1>;
-      using Vector1d = Eigen::Matrix<double, 1, 1>;
-      Vector7d __x = fun(m, reverse_search, robot->translation_invariance);
-      return std::tuple(Eigen::Vector3d(__x(0), __x(1), __x(2)),
-                        Eigen::Vector3d(__x(3), __x(4), __x(5)),
-                        Vector1d(__x(6)));
-    };
-
-    DYNO_CHECK_EQ(w.size(), 3, AT);
-    __SpaceIntegrator2_3d_res space(w(0), w(1), w(2));
-    out = new NearestNeighborsNigh<_T, __SpaceIntegrator2_3d_res>(space,
-                                                                  data_to_key);
-
   } else if (startsWith(name, "integrator2_3d")) {
     auto data_to_key = [robot, fun, reverse_search](_T const &m) {
       using Vector6d = Eigen::Matrix<double, 6, 1>;
@@ -801,7 +721,54 @@ ompl::NearestNeighbors<_T> *nigh_factory_t(
     DYNO_CHECK_EQ(w.size(), 3, AT);
     __SpaceCar1 space(w(0), w(1), w(2));
     out = new NearestNeighborsNigh<_T, __SpaceCar1>(space, data_to_key);
+  } else if (startsWith(name, "differential_drive")) {
+
+    if (cost_scale < 0) {
+      auto data_to_key = [robot, fun, reverse_search](_T const &m) {
+        Eigen::Vector3d __x =
+            fun(m, reverse_search, robot->translation_invariance);
+        return std::tuple(Eigen::Vector2d(__x.head(2)), __x(2));
+      };
+
+      DYNO_CHECK_EQ(w.size(), 2, AT);
+      __Space space(double(w(0)), double(w(1)));
+
+      out = new NearestNeighborsNigh<_T, __Space>(space, data_to_key);
+    } else {
+      std::cout << "Warning: State space with cost!" << std::endl;
+      auto data_to_key = [robot, fun, reverse_search](_T const &m) {
+        Eigen::Vector3d __x =
+            fun(m, reverse_search, robot->translation_invariance);
+        double c = m->get_cost();
+        using Vector1d = Eigen::Matrix<double, 1, 1>;
+        return std::tuple(Eigen::Vector2d(__x.head(2)), __x(2), Vector1d(c));
+      };
+
+      DYNO_CHECK_EQ(w.size(), 2, AT);
+      __SpaceWithCost space(double(w(0)), double(w(1)), cost_scale);
+
+      out = new NearestNeighborsNigh<_T, __SpaceWithCost>(space, data_to_key);
+    }
+
+  } else if (startsWith(name, "quad3d")) {
+
+    auto data_to_key = [robot, fun, reverse_search](_T const &m) {
+      using Vector13d = Eigen::Matrix<double, 13, 1>;
+      Vector13d __x = fun(m, reverse_search, robot->translation_invariance);
+      // const Eigen::VectorXd &__x = fun(m);
+      return std::tuple(Eigen::Vector3d(__x(0), __x(1), __x(2)),
+                        Eigen::Quaterniond(__x(3), __x(4), __x(5), __x(6)),
+                        Eigen::Vector3d(__x(7), __x(8), __x(9)),
+                        Eigen::Vector3d(__x(10), __x(11), __x(12)));
+    };
+
+    DYNO_CHECK_EQ(w.size(), 4, AT);
+    __SpaceQuad3d space(w(0), w(1), w(2), w(3));
+    // out = new NearestNeighborsNigh<_T, SpaceQuad3d>(data_to_key);
+    out = new NearestNeighborsNigh<_T, __SpaceQuad3d>(space, data_to_key);
+
   }
+
 
   CHECK(out, AT);
   return out;
