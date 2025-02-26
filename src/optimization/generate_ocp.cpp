@@ -109,32 +109,32 @@ generate_problem(const Generate_params &gen_args,
 
     if (gen_args.model_robot->name == "joint_robot") {
 
-      // std::cout << "adding regularization on w and v, q" << std::endl;
-      // Vxd state_weights(13);
-      // state_weights.setOnes();
-      // state_weights *= 0.01;
-      // state_weights.segment(0, 3).setZero();
-      // state_weights.segment(3, 4).setConstant(0.1);
-      //
-      // Vxd state_ref = Vxd::Zero(13);
-      // state_ref(6) = 1.;
-      //
-      // ptr<Cost> state_feature =
-      //     mk<State_cost>(nx, nu, nx, state_weights, state_ref);
-      // feats_run.push_back(state_feature);
-      //
-      // // std::cout << "adding cost on quaternion norm" << std::endl;
-      // // ptr<Cost> quat_feature = mk<Quaternion_cost>(nx, nu);
-      // // boost::static_pointer_cast<Quaternion_cost>(quat_feature)->k_quat = 1.;
-      // // feats_run.push_back(quat_feature);
-      // //
-      // // std::cout << "adding regularization on acceleration" << std::endl;
-      // // ptr<Cost> acc_feature =
-      // //     mk<Quad3d_acceleration_cost>(gen_args.model_robot);
-      // // boost::static_pointer_cast<Quad3d_acceleration_cost>(acc_feature)
-      // //     ->k_acc = .005;
-      // //
-      // // feats_run.push_back(acc_feature);
+       std::cout << "adding regularization on w and v, q" << std::endl;
+       Vxd state_weights(13);
+       state_weights.setOnes();
+       state_weights *= 0.01;
+       state_weights.segment(0, 3).setZero();
+       state_weights.segment(3, 4).setConstant(0.1);
+
+       Vxd state_ref = Vxd::Zero(13);
+       state_ref(6) = 1.;
+
+       ptr<Cost> state_feature =
+           mk<State_cost>(nx, nu, nx, state_weights, state_ref);
+       feats_run.push_back(state_feature);
+
+       // std::cout << "adding cost on quaternion norm" << std::endl;
+       // ptr<Cost> quat_feature = mk<Quaternion_cost>(nx, nu);
+       // boost::static_pointer_cast<Quaternion_cost>(quat_feature)->k_quat = 1.;
+       // feats_run.push_back(quat_feature);
+       //
+       // std::cout << "adding regularization on acceleration" << std::endl;
+       // ptr<Cost> acc_feature =
+       //     mk<Quad3d_acceleration_cost>(gen_args.model_robot);
+       // boost::static_pointer_cast<Quad3d_acceleration_cost>(acc_feature)
+       //     ->k_acc = .005;
+       //
+       // feats_run.push_back(acc_feature);
 
       auto ptr_derived = std::dynamic_pointer_cast<dynobench::Joint_robot>(
           gen_args.model_robot);
